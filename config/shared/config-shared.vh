@@ -24,20 +24,15 @@ localparam SV39 = 4'd8;
 localparam SV48 = 4'd9;
 
 // macros to define supported modes
-localparam A_SUPPORTED = ((MISA >> 0) % 2 == 1);
-localparam B_SUPPORTED = ((ZBA_SUPPORTED | ZBB_SUPPORTED | ZBC_SUPPORTED | ZBS_SUPPORTED));// not based on MISA
-localparam C_SUPPORTED = ((MISA >> 2) % 2 == 1);
-localparam COMPRESSED_SUPPORTED = C_SUPPORTED | ZCA_SUPPORTED;
-localparam D_SUPPORTED = ((MISA >> 3) % 2 == 1);
-localparam E_SUPPORTED = ((MISA >> 4) % 2 == 1);
-localparam F_SUPPORTED = ((MISA >> 5) % 2 == 1);
-localparam I_SUPPORTED = ((MISA >> 8) % 2 == 1);
-localparam K_SUPPORTED = ((ZBKB_SUPPORTED | ZBKC_SUPPORTED | ZBKX_SUPPORTED | ZKND_SUPPORTED | ZKNE_SUPPORTED | ZKNH_SUPPORTED));
-localparam M_SUPPORTED = ((MISA >> 12) % 2 == 1);
-localparam Q_SUPPORTED = ((MISA >> 16) % 2 == 1);
-localparam S_SUPPORTED = ((MISA >> 18) % 2 == 1);
-localparam U_SUPPORTED = ((MISA >> 20) % 2 == 1);
-// N-mode user-level interrupts are depricated per Andrew Waterman 1/13/21
+localparam logic I_SUPPORTED = (!E_SUPPORTED);
+localparam logic A_SUPPORTED = (ZAAMO_SUPPORTED & ZALRSC_SUPPORTED);
+localparam logic B_SUPPORTED = ((ZBA_SUPPORTED & ZBB_SUPPORTED & ZBS_SUPPORTED));
+localparam logic C_SUPPORTED = ZCA_SUPPORTED & (D_SUPPORTED ? ZCD_SUPPORTED : 1) & (F_SUPPORTED ? ((XLEN == 32) ? ZCF_SUPPORTED : 1) : 1);
+localparam logic ZKN_SUPPORTED = (ZBKB_SUPPORTED & ZBKC_SUPPORTED & ZBKX_SUPPORTED & ZKND_SUPPORTED & ZKNE_SUPPORTED & ZKNH_SUPPORTED);
+
+// Configure MISA based on supported extensions
+localparam MISA = {6'b0, 5'b0, U_SUPPORTED, 1'b0, S_SUPPORTED, 1'b0, Q_SUPPORTED, 3'b0, M_SUPPORTED, 3'b0, I_SUPPORTED, 2'b0, 
+                   F_SUPPORTED, E_SUPPORTED, D_SUPPORTED, C_SUPPORTED, B_SUPPORTED, A_SUPPORTED};
 
 // logarithm of XLEN, used for number of index bits to select
 localparam LOG_XLEN = (XLEN == 32 ? 32'd5 : 32'd6);
@@ -75,6 +70,7 @@ localparam NE   = Q_SUPPORTED ? Q_NE   : D_SUPPORTED ? D_NE   : S_NE;
 localparam NF   = Q_SUPPORTED ? Q_NF   : D_SUPPORTED ? D_NF   : S_NF;
 localparam FMT  = Q_SUPPORTED ? 2'd3   : D_SUPPORTED ? 2'd1   : 2'd0;
 localparam BIAS = Q_SUPPORTED ? Q_BIAS : D_SUPPORTED ? D_BIAS : S_BIAS;
+localparam LOGFLEN = $clog2(FLEN);
 
 // Floating point constants needed for FPU paramerterization
 // LEN1/NE1/NF1/FNT1 is the size of the second longest supported format
@@ -114,15 +110,23 @@ localparam CVTLEN = (ZFA_SUPPORTED & D_SUPPORTED) ? `max(BASECVTLEN, 32'd84) : B
 localparam LLEN = `max($unsigned(FLEN), $unsigned(XLEN));
 localparam LOGCVTLEN = $unsigned($clog2(CVTLEN+1));
 
+// size of FMA output
+localparam FMALEN = 3*NF + 6;
+
 // NORMSHIFTSIZE is the bits out of the normalization shifter
 // RV32F: max(32+23+1, 2(23)+4, 3(23)+6) = 3*23+6 = 75
 // RV64F: max(64+23+1, 64 + 23 + 2, 3*23+6) = 89
 // RV64D: max(84+52+1, 64+52+2, 3*52+6) = 162
-localparam NORMSHIFTSZ = `max(`max((CVTLEN+NF+1), (DIVb + 1 + NF + 1)), (3*NF+6));
+// *** DH 5/10/24 testbench_fp f_ieee_div_2_1_rv64gc cvtint was failing for fcvt.lu.s
+//     with CVTLEN+NF+1.  Changing to CVTLEN+NF+1+2 fixes failures
+//     This same failure occurred for any test with IDIV_ON_FPU = 0, FLEN=32, XLEN=64
+//     because NORMSHIFTSZ becomes limited by convert rather than divider
+//     The two extra bits are necessary because shiftcorrection dropped them for fcvt.
+//     May be possible to remove these two bits by modifying shiftcorrection
+//localparam NORMSHIFTSZ = `max(`max((CVTLEN+NF+1+2), (DIVb + 1 + NF + 1)), (FMALEN + 2));
+localparam NORMSHIFTSZ = `max(`max((CVTLEN+NF+1), (DIVb + 1 + NF + 1)), (FMALEN + 2));
 
 localparam LOGNORMSHIFTSZ = ($clog2(NORMSHIFTSZ));                  // log_2(NORMSHIFTSZ)
-localparam CORRSHIFTSZ = NORMSHIFTSZ-2;                             // Drop leading 2 integer bits
-
 
 // Disable spurious Verilator warnings
 
