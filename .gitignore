@@ -93,7 +93,7 @@ synthDC/wallyplots/
 synthDC/runArchive
 synthDC/hdl
 sim/power.saif
-tests/fp/vectors/*.tv
+tests/fp/vectors
 synthDC/Summary.csv
 tests/custom/work
 tests/custom/*/*/*.list
@@ -193,13 +193,18 @@ config/deriv
 docs/docker/buildroot-config-src
 docs/docker/testvector-generation
 sim/questa/cov
-sim/questa/covhtmlreport/
+sim/covhtmlreport/
 sim/questa/logs
 sim/questa/wkdir
+sim/questa/ucdb
+sim/questa/fcov 
+sim/questa/fcov_logs
+sim/questa/fcov_ucdb
 sim/verilator/logs
 sim/verilator/wkdir
 sim/vcs/logs
 sim/vcs/wkdir
+sim/vcs/ucdb
 benchmarks/coremark/coremark_results.csv
 fpga/zsbl/OBJ/*
 fpga/zsbl/bin/*
@@ -237,3 +242,4 @@ tests/functcov
 tests/functcov/*
 tests/functcov/*/*
 sim/vcs/simprofile*
+sim/verilator/verilator.log

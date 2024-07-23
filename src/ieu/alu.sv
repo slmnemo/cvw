@@ -7,7 +7,7 @@
 //
 // Purpose: RISC-V Arithmetic/Logic Unit
 //
-// Documentation: RISC-V System on Chip Design Chapter 4 (Figure 4.4)
+// Documentation: RISC-V System on Chip Design
 // 
 // A component of the CORE-V-WALLY configurable RISC-V project.
 // https://github.com/openhwgroup/cvw
@@ -30,7 +30,7 @@
 
 module alu import cvw::*; #(parameter cvw_t P) (
   input  logic [P.XLEN-1:0] A, B,        // Operands
-  input  logic              W64,         // W64-type instruction
+  input  logic              W64, UW64,   // W64/.uw-type instruction
   input  logic              SubArith,    // Subtraction or arithmetic shift
   input  logic [2:0]        ALUSelect,   // ALU mux select signal
   input  logic [3:0]        BSelect,     // Binary encoding of if it's a ZBA_ZBB_ZBC_ZBS instruction
@@ -77,7 +77,7 @@ module alu import cvw::*; #(parameter cvw_t P) (
   end else assign ZeroCondMaskInvB = CondMaskInvB; // no masking if Zicond is not supported
 
   // Shifts (configurable for rotation)
-  shifter #(P) sh(.A, .Amt(B[P.LOG_XLEN-1:0]), .Right(Funct3[2]), .W64, .SubArith, .Y(Shift), .Rotate(BALUControl[2]));
+  shifter #(P) sh(.A(CondShiftA), .Amt(B[P.LOG_XLEN-1:0]), .Right(Funct3[2]), .W64, .SubArith, .Y(Shift), .Rotate(BALUControl[2]));
 
   // Condition code flags are based on subtraction output Sum = A-B.
   // Overflow occurs when the numbers being subtracted have the opposite sign 
@@ -109,9 +109,11 @@ module alu import cvw::*; #(parameter cvw_t P) (
   else              assign PreALUResult = FullResult;
 
   // Bit manipulation muxing
-  if (P.ZBC_SUPPORTED | P.ZBS_SUPPORTED | P.ZBA_SUPPORTED | P.ZBB_SUPPORTED | P.ZBKB_SUPPORTED | P.ZBKC_SUPPORTED | P.ZBKX_SUPPORTED | P.ZKND_SUPPORTED | P.ZKNE_SUPPORTED | P.ZKNH_SUPPORTED) begin : bitmanipalu
+  if (P.ZBC_SUPPORTED  | P.ZBS_SUPPORTED  | P.ZBA_SUPPORTED  | P.ZBB_SUPPORTED |
+      P.ZBKB_SUPPORTED | P.ZBKC_SUPPORTED | P.ZBKX_SUPPORTED | 
+      P.ZKND_SUPPORTED | P.ZKNE_SUPPORTED | P.ZKNH_SUPPORTED) begin : bitmanipalu
     bitmanipalu #(P) balu(
-      .A, .B, .W64, .BSelect, .ZBBSelect, .BMUActive,
+      .A, .B, .W64, .UW64, .BSelect, .ZBBSelect, .BMUActive,
       .Funct3, .Funct7, .Rs2E, .LT,.LTU, .BALUControl, .PreALUResult, .FullResult,
       .CondMaskB, .CondShiftA, .ALUResult);
   end else begin

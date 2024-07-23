@@ -6,7 +6,7 @@
 //
 // Purpose: Divide/Square root postprocessing
 // 
-// Documentation: RISC-V System on Chip Design Chapter 13
+// Documentation: RISC-V System on Chip Design
 //
 // A component of the CORE-V-WALLY configurable RISC-V project.
 // https://github.com/openhwgroup/cvw
@@ -35,7 +35,7 @@ module fdivsqrtpostproc import cvw::*;  #(parameter cvw_t P) (
   input  logic [P.DIVb:0]      FirstU, FirstUM,   // U1.DIVb
   input  logic [P.DIVb+1:0]    FirstC,            // Q2.DIVb
   input  logic                 SqrtE,
-  input  logic                 Firstun, SqrtM, SpecialCaseM, 
+  input  logic                 SqrtM, SpecialCaseM, 
   input  logic [P.XLEN-1:0]    AM,                // U/Q(XLEN.0)
   input  logic                 RemOpM, ALTBM, BZeroM, AsM, BsM, W64M,
   input  logic [P.DIVBLEN-1:0] IntNormShiftM,     
@@ -45,7 +45,8 @@ module fdivsqrtpostproc import cvw::*;  #(parameter cvw_t P) (
   output logic [P.XLEN-1:0]    FIntDivResultM     // U/Q(XLEN.0)
 );
   
-  logic [P.DIVb+3:0]         W, Sum;
+  logic [P.DIVb+3:0]         Sum;
+  logic [P.INTDIVb+3:0]      W;
   logic [P.DIVb:0]           PreUmM;
   logic                      NegStickyM;
   logic                      weq0E, WZeroM;
@@ -71,7 +72,7 @@ module fdivsqrtpostproc import cvw::*;  #(parameter cvw_t P) (
     mux2 #(P.DIVb+4) fzeromux(FZeroDivE, FZeroSqrtE, SqrtE, FZeroE);
     csa #(P.DIVb+4) fadd(WS, WC, FZeroE, 1'b0, WSF, WCF); // compute {WCF, WSF} = {WS + WC + FZero};
     aplusbeq0 #(P.DIVb+4) wcfpluswsfeq0(WCF, WSF, wfeq0E);
-    assign WZeroE = weq0E|(wfeq0E & Firstun);
+    assign WZeroE = weq0E | wfeq0E;
   end else begin
     assign WZeroE = weq0E;
   end 
@@ -97,21 +98,27 @@ module fdivsqrtpostproc import cvw::*;  #(parameter cvw_t P) (
 
   // Integer quotient or remainder correction, normalization, and special cases
   if (P.IDIV_ON_FPU) begin:intpostproc // Int supported
-    logic [P.DIVb+3:0] UnsignedQuotM, NormRemM, NormRemDM, NormQuotM;
-    logic signed [P.DIVb+3:0] PreResultM, PreIntResultM;
+    logic [P.INTDIVb+3:0] UnsignedQuotM, NormRemM, NormRemDM, NormQuotM;
+    logic signed [P.INTDIVb+3:0] PreResultM, PreResultShiftedM, PreIntResultM;
+    logic [P.INTDIVb+3:0] DTrunc, SumTrunc;
 
-    assign W = $signed(Sum) >>> P.LOGR;
-    assign UnsignedQuotM = {3'b000, PreUmM};
+
+    assign SumTrunc = Sum[P.DIVb+3:P.DIVb-P.INTDIVb];
+    assign DTrunc = D[P.DIVb+3:P.DIVb-P.INTDIVb];
+
+    assign W = $signed(SumTrunc) >>> P.LOGR;
+    assign UnsignedQuotM = {3'b000, PreUmM[P.DIVb:P.DIVb-P.INTDIVb]};
+
 
     // Integer remainder: sticky and sign correction muxes
     assign NegQuotM = AsM ^ BsM; // Integer Quotient is negative
-    mux2 #(P.DIVb+4) normremdmux(W, W+D, NegStickyM, NormRemDM);
-    mux2 #(P.DIVb+4) normremsmux(NormRemDM, -NormRemDM, AsM, NormRemM);
-    mux2 #(P.DIVb+4) quotresmux(UnsignedQuotM, -UnsignedQuotM, NegQuotM, NormQuotM);
+    mux2 #(P.INTDIVb+4) normremdmux(W, W+DTrunc, NegStickyM, NormRemDM);
+
 
     // Select quotient or remainder and do normalization shift
-    mux2 #(P.DIVb+4)    presresultmux(NormQuotM, NormRemM, RemOpM, PreResultM);
-    assign PreIntResultM = $signed(PreResultM >>> IntNormShiftM); 
+    mux2 #(P.INTDIVb+4)    presresultmux(UnsignedQuotM, NormRemDM, RemOpM, PreResultM);
+    assign PreResultShiftedM = PreResultM >> IntNormShiftM;
+    mux2 #(P.INTDIVb+4)    preintresultmux(PreResultShiftedM, -PreResultShiftedM,AsM ^ (BsM&~RemOpM), PreIntResultM);
 
     // special case logic
     // terminates immediately when B is Zero (div 0) or |A| has more leading 0s than |B|
@@ -131,5 +138,6 @@ module fdivsqrtpostproc import cvw::*;  #(parameter cvw_t P) (
         W64M, FIntDivResultM);
     end else 
       assign FIntDivResultM = IntDivResultM[P.XLEN-1:0];
-  end
+  end else
+    assign FIntDivResultM = '0;
 endmodule

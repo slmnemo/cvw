@@ -11,6 +11,7 @@
 #
 ##################################
 import sys,os,shutil
+import argparse
 import multiprocessing
 from collections import namedtuple
 from multiprocessing import Pool, TimeoutError
@@ -44,6 +45,11 @@ tests_buildrootshort = [
 # Separate test for full buildroot run
 tests_buildrootboot = [
                     ["buildroot", ["buildroot"], [f"+INSTR_LIMIT=600000000"], # boot entire buildroot Linux to login prompt
+                        "WallyHostname login: ", "buildroot_uart.out"]
+    ]
+
+tests_buildrootbootlockstep = [
+                    ["buildroot", ["buildroot"], [f"+INSTR_LIMIT=600000000 --lockstep"], # boot entire buildroot Linux to login prompt
                         "WallyHostname login: ", "buildroot_uart.out"]
     ]
 
@@ -93,11 +99,44 @@ derivconfigtests = [
         ["nodcache_rv64gc", ["ahb64"]],
         ["nocache_rv64gc", ["ahb64"]],
 
-# Atomic variatnts
+# Atomic variants
         ["zaamo_rv64gc", ["arch64i", "arch64a_amo"]],
         ["zalrsc_rv64gc", ["arch64i", "wally64a_lrsc"]],
         ["zaamo_rv32gc", ["arch32i", "arch32a_amo"]],
         ["zalrsc_rv32gc", ["arch32i", "wally32a_lrsc"]],
+
+# Bit manipulation and crypto variants
+        ["zba_rv32gc", ["arch32i", "arch32zba"]],
+        ["zbb_rv32gc", ["arch32i", "arch32zbb"]],
+        ["zbc_rv32gc", ["arch32i", "arch32zbc"]],
+        ["zbs_rv32gc", ["arch32i", "arch32zbs"]],
+        ["zbkb_rv32gc", ["arch32i", "arch32zbkb"]],
+        ["zbkc_rv32gc", ["arch32i", "arch32zbkc"]],
+        ["zbkx_rv32gc", ["arch32i", "arch32zbkx"]],
+        ["zkne_rv32gc", ["arch32i", "arch32zkne"]],
+        ["zknd_rv32gc", ["arch32i", "arch32zknd"]],
+        ["zknh_rv32gc", ["arch32i", "arch32zknh"]],
+
+        ["zba_rv64gc", ["arch64i", "arch64zba"]],
+        ["zbb_rv64gc", ["arch64i", "arch64zbb"]],
+        ["zbc_rv64gc", ["arch64i", "arch64zbc"]],
+        ["zbs_rv64gc", ["arch64i", "arch64zbs"]],
+        ["zbkb_rv64gc", ["arch64i", "arch64zbkb"]],
+        ["zbkc_rv64gc", ["arch64i", "arch64zbkc"]],
+        ["zbkx_rv64gc", ["arch64i", "arch64zbkx"]],
+        ["zkne_rv64gc", ["arch64i", "arch64zkne"]],
+        ["zknd_rv64gc", ["arch64i", "arch64zknd"]],
+        ["zknh_rv64gc", ["arch64i", "arch64zknh"]],
+
+# No privilege modes variants
+        ["noS_rv32gc", ["arch32i", "arch32f", "arch32priv", "arch32c", "arch32m", "arch32a_amo", "arch32zifencei", "arch32zicond",
+                        "arch32zba", "arch32zfaf", "arch32zfad", "wally32a_lrsc", "arch32zcb", "arch32zbkx", "arch32zknd"]],
+        ["noS_rv64gc", ["arch64i", "arch64f", "arch64priv", "arch64c", "arch64m", "arch64a_amo", "arch64zifencei", "arch64zicond",
+                        "arch64zba", "arch64zfaf", "arch64zfad", "wally64a_lrsc", "arch64zcb", "arch64zbkx", "arch64zknd"]],
+        ["noU_rv32gc", ["arch32i", "arch32f", "arch32priv", "arch32c", "arch32m", "arch32a_amo", "arch32zifencei", "arch32zicond",
+                        "arch32zba", "arch32zfaf", "arch32zfad", "wally32a_lrsc", "arch32zcb", "arch32zbkx", "arch32zknd"]],
+        ["noU_rv64gc", ["arch64i", "arch64f", "arch64priv", "arch64c", "arch64m", "arch64a_amo", "arch64zifencei", "arch64zicond",
+                        "arch64zba", "arch64zfaf", "arch64zfad", "wally64a_lrsc", "arch64zcb", "arch64zbkx", "arch64zknd"]],
 
         ### add misaligned tests
 
@@ -137,7 +176,7 @@ derivconfigtests = [
         ["fh_rv64gc", ["arch64f", "arch64f_divsqrt", "arch64f_fma", "arch64zfh", "arch64zfh_divsqrt", "arch64zfaf"]], 
         ["fdh_rv64gc", ["arch64f", "arch64f_divsqrt", "arch64f_fma", "arch64d", "arch64d_divsqrt", "arch64d_fma", "arch64zfh", "arch64zfh_divsqrt", "arch64zfaf", "arch64zfad"]],
         ["fdq_rv64gc", ["arch64f", "arch64f_divsqrt", "arch64f_fma", "arch64d", "arch64d_divsqrt", "arch64d_fma", "arch64i", "arch64zfaf", "arch64zfad"]],
-        ["fdqh_rv64gc", ["arch64f", "arch64f_divsqrt", "arch64f_fma", "arch64d", "arch64d_divsqrt", "arch64d_fma", "arch64zfh", "arch64zfh_divsqrt", "arch64i", "wally64q", "arch64zfaf", "arch64zfad"]],
+        ["fdqh_rv64gc", ["arch64f", "arch64f_divsqrt", "arch64f_fma", "arch64d", "arch64d_divsqrt", "arch64d_fma", "arch64zfh", "arch64zfh_divsqrt", "arch64i",  "arch64zfaf", "arch64zfad"]], # "wally64q" when Q is supported again in riscof config file
     ]
 
 bpredtests = [
@@ -243,6 +282,22 @@ def addTests(tests, sim):
                     grepfile = grepfile)
             configs.append(tc)
 
+def addLockstepTestsByDir(dir, config, sim):
+    sim_logdir = WALLY+ "/sim/" + sim + "/logs/"
+    cmdPrefix="wsim --sim " + sim + " " + coverStr + " " + config
+    for file in os.listdir(dir):
+        if file.endswith(".elf"):
+            fullfile = os.path.join(dir, file)
+            sim_log = sim_logdir + config + "_" + file
+            grepstring = ""
+            tc = TestCase(
+                    name=file,
+                    variant=config,
+                    cmd=cmdPrefix + " " + fullfile + " > " + sim_log,
+                    grepstr="Mismatches            : 0",
+                    grepfile = sim_log)
+            configs.append(tc)
+
 def search_log_for_text(text, grepfile):
     """Search through the given log file for text, returning True if it is found or False if it is not"""
     grepwarn = "grep -H Warning: " + grepfile
@@ -279,26 +334,29 @@ regressionDir = WALLY + '/sim'
 os.chdir(regressionDir)
 
 coveragesim = "questa"  # Questa is required for code/functional coverage
-#defaultsim = "vcs"   # Default simulator for all other tests; change to Verilator when flow is ready
-defaultsim = "questa"   # Default simulator for all other tests; change to Verilator when flow is ready
-#defaultsim = "verilator"   # Default simulator for all other tests
+#defaultsim = "questa"   # Default simulator for all other tests; change to Verilator when flow is ready
+defaultsim = "verilator"   # Default simulator for all other tests
 
-coverage = '--coverage' in sys.argv
-fp = '--fp' in sys.argv
-nightly = '--nightly' in sys.argv
-testfloat = '--testfloat' in sys.argv
+parser = argparse.ArgumentParser()
+parser.add_argument("--ccov", help="Code Coverage", action="store_true")
+parser.add_argument("--fcov", help="Functional Coverage", action="store_true")
+parser.add_argument("--nightly", help="Run large nightly regression", action="store_true")
+parser.add_argument("--buildroot", help="Include Buildroot Linux boot test (takes many hours, done along with --nightly)", action="store_true")
+parser.add_argument("--testfloat", help="Include Testfloat floating-point unit tests", action="store_true")
+parser.add_argument("--fp", help="Include floating-point tests in coverage (slower runtime)", action="store_true")
+args = parser.parse_args()
 
-if (nightly):
+if (args.nightly):
     nightMode = "--nightly";
-#    sims = [defaultsim] 
-    sims = ["questa", "vcs"] 
-#    sims = ["questa", "verilator", "vcs"] # *** uncomment to exercise all simulators
+    sims = ["questa", "verilator", "vcs"] # exercise all simulators; can omit a sim if no license is available
 else:
     nightMode = ""
     sims = [defaultsim]
 
-if (coverage):  # only run RV64GC tests in coverage mode
-    coverStr = '--coverage'
+if (args.ccov):  # only run RV64GC tests in coverage mode
+    coverStr = '--ccov'
+elif (args.fcov):  # only run RV64GC tests in lockstep in coverage mode
+    coverStr = '--fcov'
 else:
    coverStr = ''
 
@@ -313,38 +371,72 @@ configs = [
         grepfile = WALLY + "/sim/verilator/logs/all_lints.log")
     ]
 
-if (coverage):  # only run RV64GC tests on Questa in coverage mode
-    addTests(tests64gc_nofp, "questa")
-    if (fp):
-        addTests(tests64gc_fp, "questa")
-else:
+
+
+# run full buildroot boot simulation (slow) if buildroot flag is set.  Start it early to overlap with other tests
+if (args.buildroot):
+    # addTests(tests_buildrootboot, defaultsim) # non-lockstep with Verilator runs in about 2 hours
+    addTests(tests_buildrootbootlockstep, "questa") # lockstep with Questa and ImperasDV runs overnight
+
+if (args.ccov):  # only run RV64GC tests on Questa in code coverage mode
+    addTests(tests64gc_nofp, coveragesim)
+    if (args.fp):
+        addTests(tests64gc_fp, coveragesim)
+elif (args.fcov):  # only run RV64GC tests on Questa in lockstep in functional coverage mode
+    addLockstepTestsByDir(WALLY+"/tests/functcov/rv64/I", "rv64gc", coveragesim)
+    #sim_log = WALLY + "/sim/questa/logs/fcov.log" 
+    #tc = TestCase(
+    #        name="lockstep_functcov",
+    #        variant="rv64gc",
+    #        cmd="iterelf " + WALLY + "/tests/functcov/rv64/I > " + sim_log,
+    #        grepstr="SUCCESS! All tests ran without failures",
+    #        grepfile = sim_log)
+    #configs.append(tc)
+else: 
     for sim in sims:
+        if (not (args.buildroot and sim == defaultsim)):  # skip short buildroot sim if running long one
+            addTests(tests_buildrootshort, sim)
         addTests(tests, sim)
         addTests(tests64gc_nofp, sim)
         addTests(tests64gc_fp, sim)
 
-    # run derivative configurations in nightly regression
-if (nightly):
-    addTests(tests_buildrootboot, defaultsim)
+# run derivative configurations and lockstep tests in nightly regression
+if (args.nightly):
+    sim_log = WALLY + "/sim/questa/logs/lockstep_coverage.log" 
+    tc = TestCase(
+            name="lockstep_coverage",
+            variant="rv64gc",
+            cmd="iterelf " + WALLY + "/tests/coverage > " + sim_log,
+            grepstr="SUCCESS! All tests ran without failures",
+            grepfile = sim_log)
+    configs.append(tc)
+
+    sim_log = WALLY + "/sim/questa/logs/lockstep_wally-riscv-arch-test.log" 
+    tc = TestCase(
+            name="lockstep_wally-riscv-arch-test",
+            variant="rv64gc",
+            cmd="iterelf " + WALLY + "/tests/riscof/work/wally-riscv-arch-test/rv64i_m > " + sim_log,
+            grepstr="SUCCESS! All tests ran without failures",
+            grepfile = sim_log)
+    configs.append(tc)
     addTests(derivconfigtests, defaultsim)
-else:
-    addTests(tests_buildrootshort, defaultsim)
 
 # testfloat tests
-if (testfloat): # for testfloat alone, just run testfloat tests
+if (args.testfloat): # for testfloat alone, just run testfloat tests
     configs = []
-if (testfloat or nightly): # for nightly, run testfloat along with othres
+if (args.testfloat or args.nightly): # for nightly, run testfloat along with others
+    testfloatsim = "questa" # change to Verilator when Issue #707 about testfloat not running Verilator is resolved
     testfloatconfigs = ["fdqh_ieee_rv64gc", "fdq_ieee_rv64gc", "fdh_ieee_rv64gc", "fd_ieee_rv64gc", "fh_ieee_rv64gc", "f_ieee_rv64gc", "fdqh_ieee_rv32gc", "f_ieee_rv32gc"]
     for config in testfloatconfigs:
         tests = ["div", "sqrt", "add", "sub", "mul", "cvtint", "cvtfp", "fma", "cmp"]
         if ("f_" in config):
             tests.remove("cvtfp")
         for test in tests:
-            sim_log = WALLY + "/sim/questa/logs/"+config+"_"+test+".log" # TODO: Change hardcoded questa log directory to simulator
+            sim_log = WALLY + "/sim/" + testfloatsim + "/logs/"+config+"_"+test+".log" 
             tc = TestCase(
                     name=test,
                     variant=config,
-                    cmd="wsim --tb testbench_fp " + config + " " + test + " > " + sim_log,
+                    cmd="wsim --tb testbench_fp --sim " + testfloatsim + " " + config + " " + test + " > " + sim_log,
                     grepstr="All Tests completed with          0 errors",
                     grepfile = sim_log)
             configs.append(tc)
@@ -389,7 +481,7 @@ if (testfloat or nightly): # for nightly, run testfloat along with othres
             tc = TestCase(
                     name=test,
                     variant=config,
-                    cmd="wsim --tb testbench_fp --sim questa " + config + " " + test + " > " + sim_log,
+                    cmd="wsim --tb testbench_fp " + config + " " + test + " > " + sim_log,
                     grepstr="All Tests completed with          0 errors",
                     grepfile = WALLY + "/sim/questa/logs/"+config+"_"+test+".log")
             configs.append(tc)
@@ -397,31 +489,36 @@ if (testfloat or nightly): # for nightly, run testfloat along with othres
 
 def main():
     """Run the tests and count the failures"""
-    global configs, coverage
+    global configs, args
     os.chdir(regressionDir)
-    for d in ["questa/logs", "questa/wkdir", "verilator/logs", "verilator/wkdir", "vcs/logs", "vcs/wkdir"]:
+    dirs = ["questa/logs", "questa/wkdir", "verilator/logs", "verilator/wkdir", "vcs/logs", "vcs/wkdir"]
+    for d in dirs: 
         try:
+            os.system('rm -rf %s' % d)
             os.mkdir(d)
         except:
             pass
- 
-    if '--makeTests' in sys.argv:
-        os.chdir(regressionDir)
-        os.system('./make-tests.sh | tee ./logs/make-tests.log')
-
-    elif '--coverage' in sys.argv:
+    if args.ccov:
         TIMEOUT_DUR = 20*60 # seconds
         os.system('rm -f questa/cov/*.ucdb')
-    elif '--nightly' in sys.argv:
+    elif args.fcov:
+        TIMEOUT_DUR = 1*60
+        os.system('rm -f questa/fcov_ucdb/* questa/fcov_logs/* questa/fcov/*')
+    elif args.nightly:
         TIMEOUT_DUR = 60*1440 # 1 day
-    elif '--testfloat' in sys.argv:
-        TIMEOUT_DUR = 5*60 # seconds
+    elif args.testfloat:
+        TIMEOUT_DUR = 30*60 # seconds
     else:
         TIMEOUT_DUR = 10*60 # seconds
 
     # Scale the number of concurrent processes to the number of test cases, but
     # max out at a limited number of concurrent processes to not overwhelm the system
-    with Pool(processes=min(len(configs),multiprocessing.cpu_count())) as pool:
+    # right now fcov, ccov, nightly all use Imperas
+    if (args.ccov or args.fcov or args.nightly):
+        ImperasDVLicenseCount = 8 # limit number of concurrent processes to avoid overloading ImperasDV licenses
+    else:
+        ImperasDVLicenseCount = 10000 # effectively no license limit for non-lockstep tests
+    with Pool(processes=min(len(configs),multiprocessing.cpu_count(), ImperasDVLicenseCount)) as pool:
        num_fail = 0
        results = {}
        for config in configs:
@@ -434,8 +531,10 @@ def main():
              print(f"{bcolors.FAIL}%s_%s: Timeout - runtime exceeded %d seconds{bcolors.ENDC}" % (config.variant, config.name, TIMEOUT_DUR))
 
     # Coverage report
-    if coverage:
-       os.system('make QuestaCoverage')
+    if args.ccov:
+       os.system('make QuestaCodeCoverage')
+    if args.fcov:
+       os.system('make QuestaFunctCoverage')
     # Count the number of failures
     if num_fail:
         print(f"{bcolors.FAIL}Regression failed with %s failed configurations{bcolors.ENDC}" % num_fail)

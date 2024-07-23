@@ -7,7 +7,7 @@
 // Purpose: Status register (and environment configuration register and others shared across modes)
 //          See RISC-V Privileged Mode Specification 20190608 
 // 
-// Documentation: RISC-V System on Chip Design Chapter 5
+// Documentation: RISC-V System on Chip Design
 //
 // A component of the CORE-V-WALLY configurable RISC-V project.
 // https://github.com/openhwgroup/cvw
@@ -66,7 +66,7 @@ module csrsr import cvw::*;  #(parameter cvw_t P) (
                            STATUS_XS, STATUS_FS, /*STATUS_MPP, 2'b0*/ 4'b0,
                            STATUS_SPP, /*STATUS_MPIE*/ 1'b0, STATUS_UBE, STATUS_SPIE,
                           /*1'b0, STATUS_MIE, 1'b0*/ 3'b0, STATUS_SIE, 1'b0};
-    assign MSTATUSH_REGW = '0; // *** does not exist when XLEN=64, but don't want it to have an undefined value.  Spec is not clear what it should be.
+    assign MSTATUSH_REGW = '0; // does not exist when XLEN=64, and accessing will throw an illegal instruction
   end else begin: csrsr32 // RV32
     assign MSTATUS_REGW  = {STATUS_SD, 8'b0,
                            STATUS_TSR, STATUS_TW, STATUS_TVM, STATUS_MXR, STATUS_SUM, STATUS_MPRV,
@@ -99,7 +99,7 @@ module csrsr import cvw::*;  #(parameter cvw_t P) (
   assign STATUS_UXL  = P.U_SUPPORTED ? 2'b10 : 2'b00; // 10 if user mode supported
   assign STATUS_SUM  = P.S_SUPPORTED & P.VIRTMEM_SUPPORTED & STATUS_SUM_INT; // override reigster with 0 if supervisor mode not supported
   assign STATUS_MPRV = P.U_SUPPORTED & STATUS_MPRV_INT; // override with 0 if user mode not supported
-  assign STATUS_FS   = (P.S_SUPPORTED & (P.F_SUPPORTED | P.D_SUPPORTED)) ? STATUS_FS_INT : 2'b00; // off if no FP  
+  assign STATUS_FS   = P.F_SUPPORTED ? STATUS_FS_INT : 2'b00; // off if no FP
   assign STATUS_SD   = (STATUS_FS == 2'b11) | (STATUS_XS == 2'b11); // dirty state logic
   assign STATUS_XS   = 2'b00; // No additional user-mode state to be dirty
 
