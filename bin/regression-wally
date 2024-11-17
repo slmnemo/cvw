@@ -23,7 +23,8 @@ from multiprocessing import Pool, TimeoutError
 
 # The tests are a list with one element for each configuration
 # The element consists of the configuration name, a list of test suites to run, 
-# optionally a string to pass to the simulator, and optionally a nonstandard grep string to check for success
+# optionally a dictionary of arguments and parameters in lists accessible by keys args and parameters
+# and optionally a nonstandard grep string to check for success and a different file to search
 
 tests = [
         ["rv32e", ["arch32e"]],
@@ -39,18 +40,18 @@ tests = [
 
 # Separate test for short buildroot run through OpenSBI UART output
 tests_buildrootshort = [
-                    ["buildroot", ["buildroot"], [f"+INSTR_LIMIT=1400000"], # Instruction limit gets to first OpenSBI UART output  
+                    ["buildroot", ["buildroot"], {'args': [f"+INSTR_LIMIT=1400000"]}, # Instruction limit gets to first OpenSBI UART output  
                         "OpenSBI v", "buildroot_uart.out"]
     ]
 
 # Separate test for full buildroot run
 tests_buildrootboot = [
-                    ["buildroot", ["buildroot"], [f"+INSTR_LIMIT=600000000"], # boot entire buildroot Linux to login prompt
+                    ["buildroot", ["buildroot"], {'args': [f"+INSTR_LIMIT=600000000"]}, # boot entire buildroot Linux to login prompt
                         "WallyHostname login: ", "buildroot_uart.out"]
     ]
 
 tests_buildrootbootlockstep = [
-                    ["buildroot", ["buildroot"], [f"+INSTR_LIMIT=600000000 --lockstep"], # boot entire buildroot Linux to login prompt
+                    ["buildroot", ["buildroot"], {'args': [f"+INSTR_LIMIT=600000000 --lockstep"]}, # boot entire buildroot Linux to login prompt
                         "WallyHostname login: ", "buildroot_uart.out"]
     ]
 
@@ -183,51 +184,51 @@ derivconfigtests = [
 bpredtests = [
     
         ["nobpred_rv32gc", ["rv32i"]],
-        ["bpred_TWOBIT_6_16_10_0_rv32gc", ["embench"], "-GPrintHPMCounters=1"],
-        ["bpred_TWOBIT_8_16_10_0_rv32gc", ["embench"], "-GPrintHPMCounters=1"],
-        ["bpred_TWOBIT_10_16_10_0_rv32gc", ["embench"], "-GPrintHPMCounters=1"],        
-        ["bpred_TWOBIT_12_16_10_0_rv32gc", ["embench"], "-GPrintHPMCounters=1"],
-        ["bpred_TWOBIT_14_16_10_0_rv32gc", ["embench"], "-GPrintHPMCounters=1"],        
-        ["bpred_TWOBIT_16_16_10_0_rv32gc", ["embench"], "-GPrintHPMCounters=1"],
-        ["bpred_TWOBIT_6_16_10_1_rv32gc", ["embench"], "-GPrintHPMCounters=1"],
-        ["bpred_TWOBIT_8_16_10_1_rv32gc", ["embench"], "-GPrintHPMCounters=1"],
-        ["bpred_TWOBIT_10_16_10_1_rv32gc", ["embench"], "-GPrintHPMCounters=1"],        
-        ["bpred_TWOBIT_12_16_10_1_rv32gc", ["embench"], "-GPrintHPMCounters=1"],
-        ["bpred_TWOBIT_14_16_10_1_rv32gc", ["embench"], "-GPrintHPMCounters=1"],        
-        ["bpred_TWOBIT_16_16_10_1_rv32gc", ["embench"], "-GPrintHPMCounters=1"],
+        ["bpred_TWOBIT_6_16_10_0_rv32gc", ["embench"], {'params': ["PrintHPMCounters=1\\\'b1"]}],
+        ["bpred_TWOBIT_8_16_10_0_rv32gc", ["embench"], {'params': ["PrintHPMCounters=1\\\'b1"]}],
+        ["bpred_TWOBIT_10_16_10_0_rv32gc", ["embench"], {'params': ["PrintHPMCounters=1\\\'b1"]}],        
+        ["bpred_TWOBIT_12_16_10_0_rv32gc", ["embench"], {'params': ["PrintHPMCounters=1\\\'b1"]}],
+        ["bpred_TWOBIT_14_16_10_0_rv32gc", ["embench"], {'params': ["PrintHPMCounters=1\\\'b1"]}],        
+        ["bpred_TWOBIT_16_16_10_0_rv32gc", ["embench"], {'params': ["PrintHPMCounters=1\\\'b1"]}],
+        ["bpred_TWOBIT_6_16_10_1_rv32gc", ["embench"], {'params': ["PrintHPMCounters=1\\\'b1"]}],
+        ["bpred_TWOBIT_8_16_10_1_rv32gc", ["embench"], {'params': ["PrintHPMCounters=1\\\'b1"]}],
+        ["bpred_TWOBIT_10_16_10_1_rv32gc", ["embench"], {'params': ["PrintHPMCounters=1\\\'b1"]}],        
+        ["bpred_TWOBIT_12_16_10_1_rv32gc", ["embench"], {'params': ["PrintHPMCounters=1\\\'b1"]}],
+        ["bpred_TWOBIT_14_16_10_1_rv32gc", ["embench"], {'params': ["PrintHPMCounters=1\\\'b1"]}],        
+        ["bpred_TWOBIT_16_16_10_1_rv32gc", ["embench"], {'params': ["PrintHPMCounters=1\\\'b1"]}],
 
-        ["bpred_GSHARE_6_16_10_0_rv32gc", ["embench"], "-GPrintHPMCounters=1"],
-        ["bpred_GSHARE_6_16_10_1_rv32gc", ["embench"], "-GPrintHPMCounters=1"],
-        ["bpred_GSHARE_8_16_10_0_rv32gc", ["embench"], "-GPrintHPMCounters=1"],
-        ["bpred_GSHARE_8_16_10_1_rv32gc", ["embench"], "-GPrintHPMCounters=1"],
-        ["bpred_GSHARE_10_16_10_0_rv32gc", ["embench"], "-GPrintHPMCounters=1"],
-        ["bpred_GSHARE_10_16_10_1_rv32gc", ["embench"], "-GPrintHPMCounters=1"],
-        ["bpred_GSHARE_12_16_10_0_rv32gc", ["embench"], "-GPrintHPMCounters=1"],
-        ["bpred_GSHARE_12_16_10_1_rv32gc", ["embench"], "-GPrintHPMCounters=1"],
-        ["bpred_GSHARE_14_16_10_0_rv32gc", ["embench"], "-GPrintHPMCounters=1"],
-        ["bpred_GSHARE_14_16_10_1_rv32gc", ["embench"], "-GPrintHPMCounters=1"],
-        ["bpred_GSHARE_16_16_10_0_rv32gc", ["embench"], "-GPrintHPMCounters=1"],
-        ["bpred_GSHARE_16_16_10_1_rv32gc", ["embench"], "-GPrintHPMCounters=1"],
+        ["bpred_GSHARE_6_16_10_0_rv32gc", ["embench"], {'params': ["PrintHPMCounters=1\\\'b1"]}],
+        ["bpred_GSHARE_6_16_10_1_rv32gc", ["embench"], {'params': ["PrintHPMCounters=1\\\'b1"]}],
+        ["bpred_GSHARE_8_16_10_0_rv32gc", ["embench"], {'params': ["PrintHPMCounters=1\\\'b1"]}],
+        ["bpred_GSHARE_8_16_10_1_rv32gc", ["embench"], {'params': ["PrintHPMCounters=1\\\'b1"]}],
+        ["bpred_GSHARE_10_16_10_0_rv32gc", ["embench"], {'params': ["PrintHPMCounters=1\\\'b1"]}],
+        ["bpred_GSHARE_10_16_10_1_rv32gc", ["embench"], {'params': ["PrintHPMCounters=1\\\'b1"]}],
+        ["bpred_GSHARE_12_16_10_0_rv32gc", ["embench"], {'params': ["PrintHPMCounters=1\\\'b1"]}],
+        ["bpred_GSHARE_12_16_10_1_rv32gc", ["embench"], {'params': ["PrintHPMCounters=1\\\'b1"]}],
+        ["bpred_GSHARE_14_16_10_0_rv32gc", ["embench"], {'params': ["PrintHPMCounters=1\\\'b1"]}],
+        ["bpred_GSHARE_14_16_10_1_rv32gc", ["embench"], {'params': ["PrintHPMCounters=1\\\'b1"]}],
+        ["bpred_GSHARE_16_16_10_0_rv32gc", ["embench"], {'params': ["PrintHPMCounters=1\\\'b1"]}],
+        ["bpred_GSHARE_16_16_10_1_rv32gc", ["embench"], {'params': ["PrintHPMCounters=1\\\'b1"]}],
 
         # btb
-        ["bpred_GSHARE_10_16_6_0_rv32gc", ["embench"], "-GPrintHPMCounters=1"],
-        ["bpred_GSHARE_10_16_6_1_rv32gc", ["embench"], "-GPrintHPMCounters=1"],
-        ["bpred_GSHARE_10_16_8_0_rv32gc", ["embench"], "-GPrintHPMCounters=1"],
-        ["bpred_GSHARE_10_16_8_1_rv32gc", ["embench"], "-GPrintHPMCounters=1"],
-        ["bpred_GSHARE_10_16_12_0_rv32gc", ["embench"], "-GPrintHPMCounters=1"],
-        ["bpred_GSHARE_10_16_12_1_rv32gc", ["embench"], "-GPrintHPMCounters=1"],
+        ["bpred_GSHARE_10_16_6_0_rv32gc", ["embench"], {'params': ["PrintHPMCounters=1\\\'b1"]}],
+        ["bpred_GSHARE_10_16_6_1_rv32gc", ["embench"], {'params': ["PrintHPMCounters=1\\\'b1"]}],
+        ["bpred_GSHARE_10_16_8_0_rv32gc", ["embench"], {'params': ["PrintHPMCounters=1\\\'b1"]}],
+        ["bpred_GSHARE_10_16_8_1_rv32gc", ["embench"], {'params': ["PrintHPMCounters=1\\\'b1"]}],
+        ["bpred_GSHARE_10_16_12_0_rv32gc", ["embench"], {'params': ["PrintHPMCounters=1\\\'b1"]}],
+        ["bpred_GSHARE_10_16_12_1_rv32gc", ["embench"], {'params': ["PrintHPMCounters=1\\\'b1"]}],
 
         # ras
-        ["bpred_GSHARE_10_2_10_0_rv32gc", ["embench"], "-GPrintHPMCounters=1"],
-        ["bpred_GSHARE_10_2_10_1_rv32gc", ["embench"], "-GPrintHPMCounters=1"],
-        ["bpred_GSHARE_10_3_10_0_rv32gc", ["embench"], "-GPrintHPMCounters=1"],
-        ["bpred_GSHARE_10_3_10_1_rv32gc", ["embench"], "-GPrintHPMCounters=1"],
-        ["bpred_GSHARE_10_4_10_0_rv32gc", ["embench"], "-GPrintHPMCounters=1"],
-        ["bpred_GSHARE_10_4_10_1_rv32gc", ["embench"], "-GPrintHPMCounters=1"],
-        ["bpred_GSHARE_10_6_10_0_rv32gc", ["embench"], "-GPrintHPMCounters=1"],
-        ["bpred_GSHARE_10_6_10_1_rv32gc", ["embench"], "-GPrintHPMCounters=1"],
-        ["bpred_GSHARE_10_10_10_0_rv32gc", ["embench"], "-GPrintHPMCounters=1"],
-        ["bpred_GSHARE_10_10_10_1_rv32gc", ["embench"], "-GPrintHPMCounters=1"]
+        ["bpred_GSHARE_10_2_10_0_rv32gc", ["embench"], {'params': ["PrintHPMCounters=1\\\'b1"]}],
+        ["bpred_GSHARE_10_2_10_1_rv32gc", ["embench"], {'params': ["PrintHPMCounters=1\\\'b1"]}],
+        ["bpred_GSHARE_10_3_10_0_rv32gc", ["embench"], {'params': ["PrintHPMCounters=1\\\'b1"]}],
+        ["bpred_GSHARE_10_3_10_1_rv32gc", ["embench"], {'params': ["PrintHPMCounters=1\\\'b1"]}],
+        ["bpred_GSHARE_10_4_10_0_rv32gc", ["embench"], {'params': ["PrintHPMCounters=1\\\'b1"]}],
+        ["bpred_GSHARE_10_4_10_1_rv32gc", ["embench"], {'params': ["PrintHPMCounters=1\\\'b1"]}],
+        ["bpred_GSHARE_10_6_10_0_rv32gc", ["embench"], {'params': ["PrintHPMCounters=1\\\'b1"]}],
+        ["bpred_GSHARE_10_6_10_1_rv32gc", ["embench"], {'params': ["PrintHPMCounters=1\\\'b1"]}],
+        ["bpred_GSHARE_10_10_10_0_rv32gc", ["embench"], {'params': ["PrintHPMCounters=1\\\'b1"]}],
+        ["bpred_GSHARE_10_10_10_1_rv32gc", ["embench"], {'params': ["PrintHPMCounters=1\\\'b1"]}]
 ]
 
 # list of tests not supported by ImperasDV yet that should be waived during lockstep testing
@@ -268,9 +269,17 @@ def addTests(tests, sim):
         config = test[0];
         suites = test[1];
         if (len(test) >= 3):
-            args = " --args " + " ".join(test[2])
+            if 'args' in test[2]:
+                args = " --args " + " ".join(test[2]['args'])
+            else:
+                args = ""
+            if 'params' in test[2]:
+                params = " --params " + " ".join(test[2]['params'])
+            else:
+                params = ""
         else:
             args = ""
+            params = ""
         if (len(test) >= 4):
             gs = test[3]
         else:
@@ -285,7 +294,7 @@ def addTests(tests, sim):
             tc = TestCase(
                     name=t,
                     variant=config,
-                    cmd=cmdPrefix + " " + t + args + " > " + sim_log,
+                    cmd=cmdPrefix + " " + t + args + params + " > " + sim_log,
                     grepstr=gs,
                     grepfile = grepfile)
             configs.append(tc)
@@ -377,6 +386,7 @@ parser.add_argument("--ccov", help="Code Coverage", action="store_true")
 parser.add_argument("--fcov", help="Functional Coverage", action="store_true")
 parser.add_argument("--nightly", help="Run large nightly regression", action="store_true")
 parser.add_argument("--buildroot", help="Include Buildroot Linux boot test (takes many hours, done along with --nightly)", action="store_true")
+parser.add_argument("--benchmark", help="Include Coremark and Embench Benchmarking tests", action="store_true")
 parser.add_argument("--testfloat", help="Include Testfloat floating-point unit tests", action="store_true")
 parser.add_argument("--fp", help="Include floating-point tests in coverage (slower runtime)", action="store_true")
 parser.add_argument("--dryrun", help="Print commands invoked to console without running regression", action="store_true")
@@ -437,7 +447,9 @@ if (args.nightly):
     addLockstepTestsByDir(WALLY+"/tests/coverage", "rv64gc", lockstepsim, 0)
     addLockstepTestsByDir(WALLY+"/tests/riscof/work/wally-riscv-arch-test/rv64i_m", "rv64gc", lockstepsim, 0)
     addTests(derivconfigtests, defaultsim)
-    # addTests(bpredtests, defaultsim) # This is currently broken in regression due to something related to the new wsim script.
+
+if (args.nightly or args.benchmark):
+    addTests(bpredtests, defaultsim) # This is currently broken in regression due to something related to the new wsim script.
 
 # testfloat tests
 if (args.testfloat): # for testfloat alone, just run testfloat tests
