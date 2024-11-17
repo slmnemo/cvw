@@ -5,6 +5,9 @@
 // This file is needed in the config subdirectory for each config supporting coverage.
 // It defines which extensions are enabled for that config.
 
+// Define XLEN, used in covergroups
+`define XLEN32 1
+
 // Unprivileged extensions
 `include "RV32I_coverage.svh"
 `include "RV32M_coverage.svh"
@@ -30,5 +33,6 @@
 // Privileged extensions
 `include "ZicsrM_coverage.svh"
 `include "ZicsrF_coverage.svh"
+`include "ZicsrU_coverage.svh"
 `include "RV32VM_coverage.svh"
 `include "RV32VM_PMP_coverage.svh"
