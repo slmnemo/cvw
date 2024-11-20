@@ -540,7 +540,7 @@ class TestRunner:
             md_file.write(f"\n**Tests made:** `make {test_type}`\n")
 
             # File Path
-            md_file.write(f"\n**File:** {output_file}\n\n") # *** needs to be changed
+            md_file.write(f"\n**File:** {output_file}\n\n")
             md_file.write(f"**Total Successes: {total_number_success}**\n")
             md_file.write(f"**Total Failures: {total_number_failures}**\n")
 
